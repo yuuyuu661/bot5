@@ -116,17 +116,17 @@ async def start_poker(interaction: discord.Interaction):
     game.started = True
     await interaction.response.send_message("🃏 ポーカーを開始します！ プレイヤーに手札を配ります。")
 
-    # デッキをシャッフルして配布
-   deck = CARD_DECK.copy()
-random.shuffle(deck)
+    deck = CARD_DECK.copy()
+    random.shuffle(deck)
 
-for player in game.players:
-    hand = [deck.pop() for _ in range(5)]  # 5枚引く
-    file = await create_hand_image(hand)
-    try:
-        await player.send(content="🎴 あなたの手札はこちら：", file=file)
-    except discord.Forbidden:
-        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+    for player in game.players:
+        hand = [deck.pop() for _ in range(5)]
+        file = await create_hand_image(hand)
+        try:
+            await player.send(content="🎴 あなたの手札はこちら：", file=file)
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+            
 @bot.command()
 async def sync(ctx):
     await bot.tree.sync(guild=ctx.guild)
@@ -144,6 +144,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
