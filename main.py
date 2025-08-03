@@ -3,7 +3,11 @@ from discord.ext import commands
 from discord import app_commands
 import os
 from keep_alive import keep_alive  # Flaskサーバーを使う場合（なければ削除可）
-
+import random
+CARD_SUITS = ['spades', 'hearts', 'clubs', 'diamonds']
+CARD_NUMBERS = [str(i) for i in range(2, 11)] + ['J', 'Q', 'K', 'A']
+CARD_DECK = [f"{suit}_{number}" for suit in CARD_SUITS for number in CARD_NUMBERS]
+CARD_IMAGE_BASE_URL = "https://raw.githubusercontent.com/yuuyuu661/bot5/main/cards/"
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -110,6 +114,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
