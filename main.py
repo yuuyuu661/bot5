@@ -176,8 +176,6 @@ async def start_poker(interaction: discord.Interaction):
 
     deck = CARD_DECK.copy()
     random.shuffle(deck)
-　　
-
     for player in game.players:
         hand = [deck.pop() for _ in range(5)]
         file = await create_hand_image(hand)
@@ -203,6 +201,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
