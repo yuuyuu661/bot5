@@ -57,7 +57,7 @@ async def join_poker(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     bot.add_view(PokerJoinView(None))
-    guild = discord.Object(id=YOUR_GUILD_ID_HERE)  # ← あなたのサーバーIDに変更！
+    guild = discord.Object(id=1398607685158440991)  # ← あなたのサーバーIDに変更！
     await bot.tree.sync(guild=guild)
     print(f"✅ Bot connected as {bot.user}")
 
@@ -66,3 +66,4 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
