@@ -89,12 +89,18 @@ async def start_poker(interaction: discord.Interaction):
     game.started = True
     await interaction.response.send_message("🃏 ポーカーを開始します！ プレイヤーに手札を配ります。")
 
-    # 手札を配る（ここではランダムな5枚の数値カード）
+    # デッキをシャッフルして配布
+    deck = CARD_DECK.copy()
+    random.shuffle(deck)
     for player in game.players:
-        hand = random.sample(range(1, 53), 5)  # 仮のカードID（1～52）
-        hand_text = ', '.join(f'カード{n}' for n in hand)
+        hand = [deck.pop() for _ in range(5)]
+        embed = discord.Embed(title="🎴 あなたの手札", description="以下が現在のあなたの手札です。")
+        for card in hand:
+            card_url = f"{CARD_IMAGE_BASE_URL}{card}.png"
+            embed.set_image(url=card_url)  # 最後の画像だけ表示されるが、簡易実装
+            embed.add_field(name=card.replace("_", " ").title(), value=f"[画像]({card_url})", inline=True)
         try:
-            await player.send(f"🎴 あなたの手札: {hand_text}")
+            await player.send(embed=embed)
         except discord.Forbidden:
             await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 @bot.command()
@@ -114,6 +120,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
