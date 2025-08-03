@@ -48,6 +48,10 @@ class PokerGameState:
         self.owner_id = owner_id
         self.players = []
         self.started = False
+        self.turn_index = 0
+        self.folded = set()
+        self.bets = {}
+        self.pot = 0
 
 # --- 参加ボタン付きView ---
 class PokerJoinView(discord.ui.View):
@@ -69,7 +73,61 @@ class PokerJoinView(discord.ui.View):
         game.players.append(interaction.user)
         await interaction.response.send_message("参加が完了しました！", ephemeral=True)
         await interaction.channel.send(f"✅ {interaction.user.mention} さんがポーカーに参加しました！")
+class PokerActionView(discord.ui.View):
+    def __init__(self, game, player):
+        super().__init__(timeout=60)
+        self.game = game
+        self.player = player
 
+    @discord.ui.button(label="💰 ベット", style=discord.ButtonStyle.success)
+    async def bet(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.game.bets[self.player.id] = 100
+        self.game.pot += 100
+        await interaction.response.send_message("💰 あなたは 100 チップをベットしました", ephemeral=True)
+        self.stop()
+
+    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary)
+    async def call(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.game.bets[self.player.id] = 100
+        self.game.pot += 100
+        await interaction.response.send_message("📞 あなたは 100 チップをコールしました", ephemeral=True)
+        self.stop()
+
+    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger)
+    async def raise_(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.game.bets[self.player.id] = 200
+        self.game.pot += 200
+        await interaction.response.send_message("📈 あなたは 200 チップをレイズしました", ephemeral=True)
+        self.stop()
+
+    @discord.ui.button(label="🙅 フォールド", style=discord.ButtonStyle.secondary)
+    async def fold(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.game.folded.add(self.player.id)
+        await interaction.response.send_message("🙅‍♂️ あなたはフォールドしました", ephemeral=True)
+        self.stop()
+　　async def play_turn(interaction, game: PokerGameState):
+    if game.turn_index >= len(game.players):
+        await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
+        return
+
+    player = game.players[game.turn_index]
+    if player.id in game.folded:
+        game.turn_index += 1
+        await play_turn(interaction, game)
+        return
+
+    await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
+    try:
+        await player.send("あなたのアクションを選択してください：", view=PokerActionView(game, player))
+    except discord.Forbidden:
+        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。フォールド扱いにします。")
+        game.folded.add(player.id)
+
+    view = PokerActionView(game, player)
+    await view.wait()
+
+    game.turn_index += 1
+    await play_turn(interaction, game)
 # --- /joinpoker コマンド ---
 GUILD_ID = 1398607685158440991
 
@@ -118,6 +176,7 @@ async def start_poker(interaction: discord.Interaction):
 
     deck = CARD_DECK.copy()
     random.shuffle(deck)
+　　await play_turn(interaction, game)
 
     for player in game.players:
         hand = [deck.pop() for _ in range(5)]
@@ -144,6 +203,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
