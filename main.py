@@ -4,6 +4,9 @@ from discord import app_commands
 import os
 from keep_alive import keep_alive  # Flaskサーバーを使う場合（なければ削除可）
 import random
+from PIL import Image
+import io
+import aiohttp
 CARD_SUITS = ['spades', 'hearts', 'clubs', 'diamonds']
 CARD_NUMBERS = [str(i) for i in range(2, 11)] + ['J', 'Q', 'K', 'A']
 CARD_DECK = [f"{suit}_{number}" for suit in CARD_SUITS for number in CARD_NUMBERS]
@@ -120,6 +123,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
