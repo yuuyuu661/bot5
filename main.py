@@ -59,6 +59,40 @@ async def join_poker(interaction: discord.Interaction):
         "🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇",
         view=view
     )
+@bot.tree.command(
+    name="startpoker",
+    description="ポーカーゲームを開始します（主催者のみ）",
+    guild=discord.Object(id=GUILD_ID)
+)
+async def start_poker(interaction: discord.Interaction):
+    game = POKER_GAMES.get(interaction.channel_id)
+    if not game:
+        await interaction.response.send_message("ポーカーが開始されていません。", ephemeral=True)
+        return
+
+    if interaction.user.id != game.owner_id:
+        await interaction.response.send_message("このコマンドは主催者のみ使用できます。", ephemeral=True)
+        return
+
+    if len(game.players) < 2:
+        await interaction.response.send_message("プレイヤーが2人以上必要です。", ephemeral=True)
+        return
+
+    if game.started:
+        await interaction.response.send_message("すでにゲームが開始されています。", ephemeral=True)
+        return
+
+    game.started = True
+    await interaction.response.send_message("🃏 ポーカーを開始します！ プレイヤーに手札を配ります。")
+
+    # 手札を配る（ここではランダムな5枚の数値カード）
+    for player in game.players:
+        hand = random.sample(range(1, 53), 5)  # 仮のカードID（1～52）
+        hand_text = ', '.join(f'カード{n}' for n in hand)
+        try:
+            await player.send(f"🎴 あなたの手札: {hand_text}")
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 @bot.command()
 async def sync(ctx):
     await bot.tree.sync(guild=ctx.guild)
@@ -76,6 +110,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
