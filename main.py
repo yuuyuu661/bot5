@@ -40,6 +40,7 @@ class PokerJoinView(discord.ui.View):
         await interaction.channel.send(f"✅ {interaction.user.mention} さんがポーカーに参加しました！")
 
 # --- /joinpoker コマンド ---
+GUILD_ID =1398607685158440991
 @bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します")
 async def join_poker(interaction: discord.Interaction):
     if interaction.channel_id in POKER_GAMES:
@@ -61,7 +62,7 @@ async def sync(ctx):
 async def on_ready():
     bot.add_view(PokerJoinView(None))
     guild = discord.Object(id=1398607685158440991)  # ← あなたのサーバーIDに変更！
-    await bot.tree.sync(guild=guild)
+    await bot.tree.sync(guild=discord.Object(id=GUILD_ID)) 
     print(f"✅ Bot connected as {bot.user}")
 
 # --- keep_alive（Railway/Render用）---
@@ -69,5 +70,6 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
