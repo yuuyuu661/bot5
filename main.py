@@ -41,7 +41,10 @@ class PokerJoinView(discord.ui.View):
 
 # --- /joinpoker コマンド ---
 GUILD_ID =1398607685158440991
-@bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します")
+@bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します"
+guild=discord.Object(id=GUILD_ID) 
+)
+
 async def join_poker(interaction: discord.Interaction):
     if interaction.channel_id in POKER_GAMES:
         await interaction.response.send_message("このチャンネルではすでにポーカーが開催中です。", ephemeral=True)
@@ -70,6 +73,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
