@@ -15,8 +15,32 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
-
 POKER_GAMES = {}
+async def create_hand_image(card_names):
+    images = []
+    async with aiohttp.ClientSession() as session:
+        for name in card_names:
+            url = f"{CARD_IMAGE_BASE_URL}{name}.png"
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    img_bytes = await resp.read()
+                    img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+                    images.append(img)
+
+    widths, heights = zip(*(i.size for i in images))
+    total_width = sum(widths)
+    max_height = max(heights)
+
+    combined = Image.new('RGBA', (total_width, max_height))
+    x_offset = 0
+    for img in images:
+        combined.paste(img, (x_offset, 0))
+        x_offset += img.width
+
+    buffer = io.BytesIO()
+    combined.save(buffer, format="PNG")
+    buffer.seek(0)
+    return discord.File(fp=buffer, filename="hand.png")
 
 # --- ポーカー参加状態管理クラス ---
 class PokerGameState:
@@ -93,19 +117,16 @@ async def start_poker(interaction: discord.Interaction):
     await interaction.response.send_message("🃏 ポーカーを開始します！ プレイヤーに手札を配ります。")
 
     # デッキをシャッフルして配布
-    deck = CARD_DECK.copy()
-    random.shuffle(deck)
-    for player in game.players:
-        hand = [deck.pop() for _ in range(5)]
-        embed = discord.Embed(title="🎴 あなたの手札", description="以下が現在のあなたの手札です。")
-        for card in hand:
-            card_url = f"{CARD_IMAGE_BASE_URL}{card}.png"
-            embed.set_image(url=card_url)  # 最後の画像だけ表示されるが、簡易実装
-            embed.add_field(name=card.replace("_", " ").title(), value=f"[画像]({card_url})", inline=True)
-        try:
-            await player.send(embed=embed)
-        except discord.Forbidden:
-            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+   deck = CARD_DECK.copy()
+random.shuffle(deck)
+
+for player in game.players:
+    hand = [deck.pop() for _ in range(5)]  # 5枚引く
+    file = await create_hand_image(hand)
+    try:
+        await player.send(content="🎴 あなたの手札はこちら：", file=file)
+    except discord.Forbidden:
+        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 @bot.command()
 async def sync(ctx):
     await bot.tree.sync(guild=ctx.guild)
@@ -123,6 +144,7 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
