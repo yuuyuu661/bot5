@@ -105,6 +105,7 @@ class PokerActionView(discord.ui.View):
         self.game.folded.add(self.player.id)
         await interaction.response.send_message("🙅‍♂️ あなたはフォールドしました", ephemeral=True)
         self.stop()
+        
     async def play_turn(interaction, game: PokerGameState):
     if game.turn_index >= len(game.players):
         await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
@@ -183,24 +184,25 @@ async def start_poker(interaction: discord.Interaction):
             await player.send(content="🎴 あなたの手札はこちら：", file=file)
         except discord.Forbidden:
             await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
-await play_turn(interaction, game)            
+            await play_turn(interaction, game)            
 @bot.command()
-async def sync(ctx):
-    await bot.tree.sync(guild=ctx.guild)
-    await ctx.send("✅ コマンドを再同期しました")
+        async def sync(ctx):
+            await bot.tree.sync(guild=ctx.guild)
+            await ctx.send("✅ コマンドを再同期しました")
 # --- 起動時処理 ---
 @bot.event
-async def on_ready():
-    bot.add_view(PokerJoinView(None))
-    guild = discord.Object(id=1398607685158440991)  # ← あなたのサーバーIDに変更！
-    await bot.tree.sync(guild=discord.Object(id=GUILD_ID)) 
-    print(f"✅ Bot connected as {bot.user}")
+        async def on_ready():
+           bot.add_view(PokerJoinView(None))
+           guild = discord.Object(id=1398607685158440991)  # ← あなたのサーバーIDに変更！
+           await bot.tree.sync(guild=discord.Object(id=GUILD_ID)) 
+           print(f"✅ Bot connected as {bot.user}")
 
 # --- keep_alive（Railway/Render用）---
 keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
