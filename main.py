@@ -52,7 +52,10 @@ async def join_poker(interaction: discord.Interaction):
         "🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇",
         view=view
     )
-
+@bot.command()
+async def sync(ctx):
+    await bot.tree.sync(guild=ctx.guild)
+    await ctx.send("✅ コマンドを再同期しました")
 # --- 起動時処理 ---
 @bot.event
 async def on_ready():
@@ -66,4 +69,5 @@ keep_alive()
 
 # --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
