@@ -2,20 +2,28 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
-from keep_alive import keep_alive  # Flaskサーバーを使う場合（なければ削除可）
+from keep_alive import keep_alive
 import random
 from PIL import Image
 import io
 import aiohttp
+
+# カード定義
 CARD_SUITS = ['spades', 'hearts', 'clubs', 'diamonds']
 CARD_NUMBERS = [str(i) for i in range(2, 11)] + ['J', 'Q', 'K', 'A']
 CARD_DECK = [f"{suit}_{number}" for suit in CARD_SUITS for number in CARD_NUMBERS]
 CARD_IMAGE_BASE_URL = "https://raw.githubusercontent.com/yuuyuu661/bot5/main/cards/"
+
+# Botセットアップ
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+GUILD_ID = 1398607685158440991
 POKER_GAMES = {}
+
+# カード画像結合関数
 async def create_hand_image(card_names):
     images = []
     async with aiohttp.ClientSession() as session:
@@ -30,7 +38,6 @@ async def create_hand_image(card_names):
     widths, heights = zip(*(i.size for i in images))
     total_width = sum(widths)
     max_height = max(heights)
-
     combined = Image.new('RGBA', (total_width, max_height))
     x_offset = 0
     for img in images:
@@ -42,7 +49,7 @@ async def create_hand_image(card_names):
     buffer.seek(0)
     return discord.File(fp=buffer, filename="hand.png")
 
-# --- ポーカー参加状態管理クラス ---
+# ゲーム状態クラス
 class PokerGameState:
     def __init__(self, owner_id):
         self.owner_id = owner_id
@@ -53,7 +60,7 @@ class PokerGameState:
         self.bets = {}
         self.pot = 0
 
-# --- 参加ボタン付きView ---
+# 参加ボタン
 class PokerJoinView(discord.ui.View):
     def __init__(self, channel_id):
         super().__init__(timeout=None)
@@ -65,7 +72,6 @@ class PokerJoinView(discord.ui.View):
         if not game or game.started:
             await interaction.response.send_message("このチャンネルでは参加できません。", ephemeral=True)
             return
-
         if interaction.user.id in [p.id for p in game.players]:
             await interaction.response.send_message("すでに参加しています。", ephemeral=True)
             return
@@ -73,6 +79,8 @@ class PokerJoinView(discord.ui.View):
         game.players.append(interaction.user)
         await interaction.response.send_message("参加が完了しました！", ephemeral=True)
         await interaction.channel.send(f"✅ {interaction.user.mention} さんがポーカーに参加しました！")
+
+# アクションボタン
 class PokerActionView(discord.ui.View):
     def __init__(self, game, player):
         super().__init__(timeout=60)
@@ -105,8 +113,9 @@ class PokerActionView(discord.ui.View):
         self.game.folded.add(self.player.id)
         await interaction.response.send_message("🙅‍♂️ あなたはフォールドしました", ephemeral=True)
         self.stop()
-        
-    async def play_turn(interaction, game: PokerGameState):
+
+# ターン処理関数（クラス外）
+async def play_turn(interaction, game: PokerGameState):
     if game.turn_index >= len(game.players):
         await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
         return
@@ -129,45 +138,29 @@ class PokerActionView(discord.ui.View):
 
     game.turn_index += 1
     await play_turn(interaction, game)
-# --- /joinpoker コマンド ---
-GUILD_ID = 1398607685158440991
 
-@bot.tree.command(
-    name="joinpoker",
-    description="ポーカーの参加者を募集します",
-    guild=discord.Object(id=GUILD_ID)  # ← ここが超重要
-)
-
+# コマンド定義
+@bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します", guild=discord.Object(id=GUILD_ID))
 async def join_poker(interaction: discord.Interaction):
     if interaction.channel_id in POKER_GAMES:
         await interaction.response.send_message("このチャンネルではすでにポーカーが開催中です。", ephemeral=True)
         return
-
     POKER_GAMES[interaction.channel_id] = PokerGameState(owner_id=interaction.user.id)
     view = PokerJoinView(channel_id=interaction.channel_id)
-    await interaction.response.send_message(
-        "🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇",
-        view=view
-    )
-@bot.tree.command(
-    name="startpoker",
-    description="ポーカーゲームを開始します（主催者のみ）",
-    guild=discord.Object(id=GUILD_ID)
-)
+    await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
+
+@bot.tree.command(name="startpoker", description="ポーカーゲームを開始します（主催者のみ）", guild=discord.Object(id=GUILD_ID))
 async def start_poker(interaction: discord.Interaction):
     game = POKER_GAMES.get(interaction.channel_id)
     if not game:
         await interaction.response.send_message("ポーカーが開始されていません。", ephemeral=True)
         return
-
     if interaction.user.id != game.owner_id:
         await interaction.response.send_message("このコマンドは主催者のみ使用できます。", ephemeral=True)
         return
-
     if len(game.players) < 2:
         await interaction.response.send_message("プレイヤーが2人以上必要です。", ephemeral=True)
         return
-
     if game.started:
         await interaction.response.send_message("すでにゲームが開始されています。", ephemeral=True)
         return
@@ -184,37 +177,22 @@ async def start_poker(interaction: discord.Interaction):
             await player.send(content="🎴 あなたの手札はこちら：", file=file)
         except discord.Forbidden:
             await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
-            await play_turn(interaction, game)            
+
+    await play_turn(interaction, game)
+
+# 同期コマンド
 @bot.command()
-        async def sync(ctx):
-            await bot.tree.sync(guild=ctx.guild)
-            await ctx.send("✅ コマンドを再同期しました")
-# --- 起動時処理 ---
+async def sync(ctx):
+    await bot.tree.sync(guild=ctx.guild)
+    await ctx.send("✅ コマンドを再同期しました")
+
+# 起動時
 @bot.event
-        async def on_ready():
-           bot.add_view(PokerJoinView(None))
-           guild = discord.Object(id=1398607685158440991)  # ← あなたのサーバーIDに変更！
-           await bot.tree.sync(guild=discord.Object(id=GUILD_ID)) 
-           print(f"✅ Bot connected as {bot.user}")
+async def on_ready():
+    bot.add_view(PokerJoinView(None))
+    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+    print(f"✅ Bot connected as {bot.user}")
 
-# --- keep_alive（Railway/Render用）---
+# 起動
 keep_alive()
-
-# --- Bot起動 ---
 bot.run(os.environ["DISCORD_TOKEN"])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
