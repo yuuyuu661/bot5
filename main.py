@@ -192,26 +192,26 @@ async def chargem(interaction: discord.Interaction, amount: int):
         return
 
     await interaction.response.send_message(
-        f"💸 `{amount} spt` をチャージするには、3分以内にこのチャンネルで以下のように送金してください：\n"
-        f"`/pay {bot.user.name} {amount}spt`",
+        f"💰 `{amount}Spt` を VirtualCrypto 経由で「{bot.user.name}」宛に送金してください。\n"
+        f"制限時間：**3分以内**に送金が確認されるとチャージされます。",
         ephemeral=False
     )
 
-   def check(msg: discord.Message):
+    def check(msg: discord.Message):
         description = msg.embeds[0].description if msg.embeds else ""
         return (
             msg.author.id == VIRTUALCRYPTO_ID and
             f"<@{interaction.user.id}>から<@{bot.user.id}>へ" in description and
-            f"{coins}" in description and
+            f"{amount}" in description and
             "Spt" in description
         )
 
     try:
-        msg = await bot.wait_for("message", check=check, timeout=180)  # 3分待機
+        msg = await bot.wait_for("message", timeout=180, check=check)
         add_balance(interaction.user.id, amount)
-        await interaction.channel.send(f"✅ {interaction.user.mention} さん、{amount} spt のチャージが完了しました！現在の残高: {get_balance(interaction.user.id)} spt")
+        await interaction.channel.send(f"✅ {interaction.user.mention} さん、{amount} Spt のチャージが完了しました！\n💼 現在の残高：{get_balance(interaction.user.id)} Spt")
     except asyncio.TimeoutError:
-        await interaction.channel.send(f"⏱️ {interaction.user.mention} さん、3分以内に送金が確認できなかったため、チャージをキャンセルしました。")
+        await interaction.channel.send(f"⏱️ {interaction.user.mention} さん、**3分以内に送金が確認できませんでした**。もう一度 `/chargem` を実行してください。")
 
 LOG_CHANNEL_ID = 1401466622149005493  # ログチャンネルのIDを必ず設定
 
@@ -285,6 +285,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
