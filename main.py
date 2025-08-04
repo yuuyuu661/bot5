@@ -282,34 +282,44 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
 
     await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
     
+# showdown関数（同点対応版）
 async def showdown(interaction: discord.Interaction, game: PokerGameState):
     results = []
+
     for player in game.players:
         if player.id in game.folded:
             continue
-
-        hand = game.hands.get(player.id)
-        if not hand:
+        try:
+            messages = await player.history(limit=10).flatten()
+            for msg in messages:
+                if msg.attachments:
+                    filename = msg.attachments[0].filename
+                    card_names = filename.replace("hand:", "").replace(".png", "").split(",")
+                    hand_value = evaluate_hand(card_names)
+                    results.append((player, hand_value))
+                    break
+        except Exception:
             continue
 
-        hand_strength = evaluate_hand(hand)
-        results.append((player, hand, hand_strength))
-
     if not results:
-        await interaction.channel.send("❌ 有効なプレイヤーがいません。")
+        await interaction.channel.send("❌ 勝者を判定できませんでした。")
         return
 
-    results.sort(key=lambda x: x[2], reverse=True)
-    winner, winning_hand, hand_value = results[0]
+    results.sort(key=lambda x: x[1], reverse=True)
+    top_score = results[0][1]
+    winners = [p for p, score in results if score == top_score]
 
-    # 通貨配分：勝者にポットを付与
-    add_balance(winner.id, game.pot)
+    if len(winners) == 1:
+        winner = winners[0]
+        add_balance(winner.id, game.pot)
+        await interaction.channel.send(f"🏆 勝者は {winner.mention} です！ポット {game.pot} Spt を獲得しました！")
+    else:
+        share = game.pot // len(winners)
+        for winner in winners:
+            add_balance(winner.id, share)
+        winner_mentions = ", ".join(w.mention for w in winners)
+        await interaction.channel.send(f"🤝 引き分けです！{winner_mentions} がそれぞれ {share} Spt を獲得しました。")
 
-    await interaction.channel.send(
-        f"🏆 勝者: {winner.mention}！ 役ランク: {hand_value[0]}、手札: {', '.join(winning_hand)}\n"
-        f"💰 獲得ポット: {game.pot} Spt\n"
-        f"💼 新しい残高: {get_balance(winner.id)} Spt"
-    )
 
     await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
     try:
@@ -461,6 +471,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
