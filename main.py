@@ -343,11 +343,11 @@ async def start_poker(interaction: discord.Interaction):
         hand = [deck.pop() for _ in range(5)]
         file = await create_hand_image(hand)
         try:
-        await player.send(content="🎴 あなたの手札はこちら：", file=file)
-        subtract_balance(player.id, 100)
-        await player.send("💸 参加費として 100 Spt を支払いました。")
-    except discord.Forbidden:
-        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+            await player.send(content="🎴 あなたの手札はこちら：", file=file)
+            subtract_balance(player.id, 100)
+            await player.send("💸 参加費として 100 Spt を支払いました。")
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 
     game.turn_index = 0
     game.first_round = True
@@ -371,6 +371,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
