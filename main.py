@@ -340,9 +340,9 @@ async def start_poker(interaction: discord.Interaction):
     deck = CARD_DECK.copy()
     random.shuffle(deck)
     for player in game.players:
-    hand = [deck.pop() for _ in range(5)]
-    file = await create_hand_image(hand)
-    try:
+        hand = [deck.pop() for _ in range(5)]
+        file = await create_hand_image(hand)
+        try:
         await player.send(content="🎴 あなたの手札はこちら：", file=file)
         subtract_balance(player.id, 100)
         await player.send("💸 参加費として 100 Spt を支払いました。")
@@ -371,6 +371,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
