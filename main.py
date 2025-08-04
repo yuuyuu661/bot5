@@ -345,22 +345,41 @@ async def start_poker(interaction: discord.Interaction):
         return
 
     game.started = True
-    await interaction.response.send_message("🃏 ポーカーを開始します！ プレイヤーに手札を配ります。")
+    await interaction.response.send_message("🃏 ポーカーを開始します！ プレイヤーに手札を配り、参加費を引き落とします。")
 
+    # デッキ準備
     deck = CARD_DECK.copy()
     random.shuffle(deck)
+
+    game.hands = {}
     for player in game.players:
         hand = [deck.pop() for _ in range(5)]
+        game.hands[player.id] = hand
         file = await create_hand_image(hand)
         try:
             await player.send(content="🎴 あなたの手札はこちら：", file=file)
-            subtract_balance(player.id, 100)
-            await player.send("💸 参加費として 100 Spt を支払いました。")
+            if subtract_balance(player.id, 100):
+                await player.send("💸 参加費として 100 Spt を支払いました。")
+            else:
+                await player.send("❌ 参加費（100 Spt）の支払いに失敗しました。残高不足の可能性があります。")
         except discord.Forbidden:
             await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 
+    # 初期設定
     game.turn_index = 0
     game.first_round = True
+    game.round_bets = {}
+    game.current_bet = 0
+
+    # 一巡目アクション
+    await play_turn(interaction, game)
+
+    # 交換フェーズ
+    await exchange_cards(interaction, game)
+
+    # 二巡目アクション
+    game.turn_index = 0
+    game.first_round = False
     game.round_bets = {}
     game.current_bet = 0
     await play_turn(interaction, game)
@@ -381,6 +400,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
