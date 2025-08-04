@@ -199,10 +199,6 @@ class PokerActionView(discord.ui.View):
         self.selected_amount = 0
         self.action = None
 
-        if not is_first_player:
-            self.add_item(self.call_button)
-            self.add_item(self.raise_button)
-
     @discord.ui.button(label="💰 ベット", style=discord.ButtonStyle.success, row=0)
     async def bet_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.is_first_player:
@@ -237,6 +233,10 @@ class PokerActionView(discord.ui.View):
 
     @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1)
     async def call_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.is_first_player:
+            await interaction.response.send_message("❌ 現在はコールできません。まずはベットしてください。", ephemeral=True)
+            return
+
         required = self.game.current_bet - self.game.round_bets.get(self.player.id, 0)
         if required <= 0:
             await interaction.response.send_message("✅ すでに必要な額を支払っています。", ephemeral=True)
@@ -255,6 +255,10 @@ class PokerActionView(discord.ui.View):
 
     @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1)
     async def raise_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.is_first_player:
+            await interaction.response.send_message("❌ 現在はレイズできません。まずはベットしてください。", ephemeral=True)
+            return
+
         current = self.game.current_bet
         await interaction.response.send_message(f"📈 {current} Spt 以上の金額を入力してください（最大500）。", ephemeral=True)
 
@@ -577,6 +581,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
