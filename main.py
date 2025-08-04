@@ -301,7 +301,7 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
             game.turn_index += 1
             continue
 
-        # コール・レイズが可能かの判定（一巡目の最初のみFalse）
+        # 一巡目の1人目ならベットのみ可、それ以外はコール／レイズも可
         is_first_player = (game.turn_index == 0 and all(v == 0 for v in game.round_bets.values()))
         view = PokerActionView(game, player, is_first_player=is_first_player)
 
@@ -321,7 +321,7 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
         game.turn_index += 1
 
     await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
-async def exchange_cards(interaction: discord.Interaction, game: PokerGameState, deck: list):
+
     await interaction.channel.send("🔄 手札交換フェーズを開始します。全プレイヤーにDMを送信しています。")
 
     player_hands = {}
@@ -424,20 +424,6 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
             add_balance(winner.id, share)
         winner_mentions = ", ".join(w.mention for w in winners)
         await interaction.channel.send(f"🤝 引き分けです！{winner_mentions} がそれぞれ {share} Spt を獲得しました。")
-
-
-    await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
-    try:
-        await player.send("あなたのアクションを選択してください：", view=PokerActionView(game, player))
-    except discord.Forbidden:
-        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。フォールド扱いにします。")
-        game.folded.add(player.id)
-
-    view = PokerActionView(game, player)
-    await view.wait()
-
-    game.turn_index += 1
-    await play_turn(interaction, game)
 
 # コマンド定義
 @bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します", guild=discord.Object(id=GUILD_ID))
@@ -591,6 +577,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
