@@ -544,14 +544,15 @@ async def start_poker(interaction: discord.Interaction):
     # 手札配布と参加費処理
     for player in game.players:
         hand = [deck.pop() for _ in range(5)]
-        game.hands[player.id] = hand  # ← この行を必ず追加！
+        game.hands[player.id] = hand
         file = await create_hand_image(hand)
-    try:
-        await player.send(content="🎴 あなたの手札はこちら：", file=file)
-        subtract_balance(player.id, 100)
-        await player.send("💸 参加費として 100 Spt を支払いました。")
-    except discord.Forbidden:
-        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+    
+        try:
+            await player.send(content="🎴 あなたの手札はこちら：", file=file)
+            subtract_balance(player.id, 100)
+            await player.send("💸 参加費として 100 Spt を支払いました。")
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 
 
     # ゲーム状態初期化（1巡目）
@@ -594,6 +595,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
