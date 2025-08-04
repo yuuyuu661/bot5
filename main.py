@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
+import json 
 from keep_alive import keep_alive
 import random
 from PIL import Image
@@ -270,5 +271,6 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
