@@ -57,7 +57,37 @@ def subtract_balance(user_id, amount):
         save_currency(data)
         return True
     return False
-    
+
+def evaluate_hand(cards):
+    values_order = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+                    '7': 7, '8': 8, '9': 9, '10': 10,
+                    'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+    suits = [c.split('_')[0] for c in cards]
+    values = sorted([values_order[c.split('_')[1]] for c in cards])
+    counts = {v: values.count(v) for v in set(values)}
+
+    is_flush = len(set(suits)) == 1
+    is_straight = values == list(range(min(values), max(values)+1))
+
+    if is_flush and is_straight:
+        return (8, max(values))  # ストレートフラッシュ
+    elif 4 in counts.values():
+        return (7, max(k for k, v in counts.items() if v == 4))  # フォーカード
+    elif sorted(counts.values()) == [2, 3]:
+        return (6, max(k for k, v in counts.items() if v == 3))  # フルハウス
+    elif is_flush:
+        return (5, max(values))  # フラッシュ
+    elif is_straight:
+        return (4, max(values))  # ストレート
+    elif 3 in counts.values():
+        return (3, max(k for k, v in counts.items() if v == 3))  # スリーカード
+    elif list(counts.values()).count(2) == 2:
+        return (2, max(k for k, v in counts.items() if v == 2))  # ツーペア
+    elif 2 in counts.values():
+        return (1, max(k for k, v in counts.items() if v == 2))  # ワンペア
+    else:
+        return (0, max(values))  # ハイカード
+
 # カード画像結合関数
 async def create_hand_image(card_names):
     images = []
@@ -249,7 +279,41 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
         await view.wait()
         game.turn_index += 1
 
-    await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")  
+    await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
+    
+    async def showdown(interaction: discord.Interaction, game: PokerGameState):
+    results = []
+    for player in game.players:
+        if player.id in game.folded:
+            continue
+
+        try:
+            async for msg in player.history(limit=10):
+                if msg.attachments:
+                    filename = msg.attachments[0].filename
+                    hand_str = filename.replace("hand_", "").replace(".png", "")
+                    hand = hand_str.split(",")  # フォーマットが必要なら適宜修正
+                    break
+            else:
+                continue  # 手札が見つからなければスキップ
+
+            hand_strength = evaluate_hand(hand)
+            results.append((player, hand, hand_strength))
+        except Exception as e:
+            await interaction.channel.send(f"⚠️ {player.display_name} の手札評価に失敗しました: {e}")
+            continue
+
+    if not results:
+        await interaction.channel.send("❌ 有効なプレイヤーがいません。")
+        return
+
+    results.sort(key=lambda x: x[2], reverse=True)
+    winner, winning_hand, hand_value = results[0]
+
+    await interaction.channel.send(
+        f"🏆 勝者: {winner.mention}！ 役ランク: {hand_value[0]}、手札: {', '.join(winning_hand)}\n💰 獲得ポット: {game.pot} Spt"
+    )
+
 
     await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
     try:
@@ -383,6 +447,7 @@ async def start_poker(interaction: discord.Interaction):
     game.round_bets = {}
     game.current_bet = 0
     await play_turn(interaction, game)
+    await showdown(interaction, game)  # ← ここに追加
 
 # 同期コマンド
 @bot.command()
@@ -400,6 +465,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
