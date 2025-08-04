@@ -303,17 +303,21 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
 
         # コール・レイズが可能かの判定（一巡目の最初のみFalse）
         is_first_player = (game.turn_index == 0 and all(v == 0 for v in game.round_bets.values()))
-view = PokerActionView(game, player, is_first_player=is_first_player)
+        view = PokerActionView(game, player, is_first_player=is_first_player)
 
-try:
-    await player.send("あなたのアクションを選択してください：", view=view)
-except discord.Forbidden:
-    await interaction.channel.send(f"⚠️ {player.mention} にDMを送信できませんでした。フォールド扱いにします。")
-    game.folded.add(player.id)
-    game.turn_index += 1
-    continue
+        await interaction.channel.send(
+            f"🎯 現在のターン：{player.mention}（現在のベット額：{game.current_bet} Spt）"
+        )
 
-await view.wait()  # viewを送った後に待機
+        try:
+            await player.send("あなたのアクションを選択してください：", view=view)
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送信できませんでした。フォールド扱いにします。")
+            game.folded.add(player.id)
+            game.turn_index += 1
+            continue
+
+        await view.wait()
         game.turn_index += 1
 
     await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
@@ -587,6 +591,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
