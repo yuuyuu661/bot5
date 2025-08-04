@@ -94,6 +94,9 @@ class PokerGameState:
         self.folded = set()
         self.bets = {}
         self.pot = 0
+        self.round_bets = {}      # 各プレイヤーがこのラウンドで賭けた額
+        self.current_bet = 0      # 現在の最高ベット額
+        self.first_round = True   # 一巡目フラグ
 
 # 参加ボタン
 class PokerJoinView(discord.ui.View):
@@ -150,6 +153,8 @@ class PokerActionView(discord.ui.View):
         self.stop()
 
 # ターン処理関数（クラス外）
+
+
 async def play_turn(interaction, game: PokerGameState):
     if game.turn_index >= len(game.players):
         await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
@@ -263,10 +268,16 @@ async def start_poker(interaction: discord.Interaction):
         hand = [deck.pop() for _ in range(5)]
         file = await create_hand_image(hand)
         try:
-            await player.send(content="🎴 あなたの手札はこちら：", file=file)
-        except discord.Forbidden:
-            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+    await player.send(content="🎴 あなたの手札はこちら：", file=file)
+    subtract_balance(player.id, 100)
+    await player.send("💸 参加費として 100 Spt を支払いました。")
+except discord.Forbidden:
+    await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 
+    game.turn_index = 0
+    game.first_round = True
+    game.round_bets = {}
+    game.current_bet = 0
     await play_turn(interaction, game)
 
 # 同期コマンド
@@ -285,6 +296,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
