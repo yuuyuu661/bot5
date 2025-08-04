@@ -129,6 +129,7 @@ class PokerActionView(discord.ui.View):
         self.action = None
 
         if not is_first_player:
+            self.add_item(self.call_button)
             self.add_item(self.raise_button)
 
     @discord.ui.button(label="💰 ベット", style=discord.ButtonStyle.success, row=0)
@@ -146,13 +147,16 @@ class PokerActionView(discord.ui.View):
             msg = await bot.wait_for('message', timeout=30.0, check=check)
             amount = int(msg.content)
             if 100 <= amount <= 500:
-                self.selected_amount = amount
-                self.action = "bet"
-                self.game.round_bets[self.player.id] = amount
-                self.game.current_bet = amount
-                self.game.pot += amount
-                await interaction.followup.send(f"✅ {amount} Spt をベットしました！", ephemeral=True)
-                self.stop()
+                if subtract_balance(self.player.id, amount):
+                    self.selected_amount = amount
+                    self.action = "bet"
+                    self.game.round_bets[self.player.id] = amount
+                    self.game.current_bet = amount
+                    self.game.pot += amount
+                    await interaction.followup.send(f"✅ {amount} Spt をベットしました！", ephemeral=True)
+                    self.stop()
+                else:
+                    await interaction.followup.send("❌ 残高が不足しています。", ephemeral=True)
             else:
                 await interaction.followup.send("❌ 金額は100〜500の間で指定してください。", ephemeral=True)
         except asyncio.TimeoutError:
@@ -160,7 +164,7 @@ class PokerActionView(discord.ui.View):
         except ValueError:
             await interaction.followup.send("❌ 数値を入力してください。", ephemeral=True)
 
-    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1)
+    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1, custom_id="call_button", disabled=True)
     async def call_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         required = self.game.current_bet - self.game.round_bets.get(self.player.id, 0)
         if required <= 0:
@@ -168,14 +172,17 @@ class PokerActionView(discord.ui.View):
             self.stop()
             return
 
-        self.selected_amount = required
-        self.action = "call"
-        self.game.round_bets[self.player.id] = self.game.round_bets.get(self.player.id, 0) + required
-        self.game.pot += required
-        await interaction.response.send_message(f"📞 {required} Spt をコールしました！", ephemeral=True)
-        self.stop()
+        if subtract_balance(self.player.id, required):
+            self.selected_amount = required
+            self.action = "call"
+            self.game.round_bets[self.player.id] = self.game.round_bets.get(self.player.id, 0) + required
+            self.game.pot += required
+            await interaction.response.send_message(f"📞 {required} Spt をコールしました！", ephemeral=True)
+            self.stop()
+        else:
+            await interaction.response.send_message("❌ 残高が不足しています。", ephemeral=True)
 
-    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1)
+    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1, custom_id="raise_button", disabled=True)
     async def raise_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         current = self.game.current_bet
         await interaction.response.send_message(f"📈 {current} Spt 以上の金額を入力してください（最大500）。", ephemeral=True)
@@ -187,13 +194,16 @@ class PokerActionView(discord.ui.View):
             msg = await bot.wait_for('message', timeout=30.0, check=check)
             raise_amount = int(msg.content)
             if raise_amount > current and raise_amount <= 500:
-                self.selected_amount = raise_amount
-                self.action = "raise"
-                self.game.round_bets[self.player.id] = raise_amount
-                self.game.current_bet = raise_amount
-                self.game.pot += raise_amount
-                await interaction.followup.send(f"📈 {raise_amount} Spt にレイズしました！", ephemeral=True)
-                self.stop()
+                if subtract_balance(self.player.id, raise_amount):
+                    self.selected_amount = raise_amount
+                    self.action = "raise"
+                    self.game.round_bets[self.player.id] = raise_amount
+                    self.game.current_bet = raise_amount
+                    self.game.pot += raise_amount
+                    await interaction.followup.send(f"📈 {raise_amount} Spt にレイズしました！", ephemeral=True)
+                    self.stop()
+                else:
+                    await interaction.followup.send("❌ 残高が不足しています。", ephemeral=True)
             else:
                 await interaction.followup.send("❌ 有効なレイズ額を入力してください（現在のベットより多く、最大500まで）。", ephemeral=True)
         except asyncio.TimeoutError:
@@ -371,6 +381,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
