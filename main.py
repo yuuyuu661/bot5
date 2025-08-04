@@ -389,7 +389,7 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
                 await msg.channel.send("⚠️ 交換は最大3枚までです。")
                 continue
 
-            current_hand = player_hands.get(user_id, [deck.pop() for _ in range(5)])
+            current_hand = game.hands.get(user_id, [])
             new_hand = current_hand[:]
 
             for i in indexes:
@@ -398,7 +398,7 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
                     if 0 <= idx < 5:
                         new_hand[idx] = deck.pop()
 
-            player_hands[user_id] = new_hand
+            game.hands[user_id] = new_hand
 
             file = await create_hand_image(new_hand)
             await msg.author.send("🆕 新しい手札はこちらです：", file=file)
@@ -600,6 +600,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
