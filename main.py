@@ -8,6 +8,7 @@ import random
 from PIL import Image
 import io
 import aiohttp
+import asyncio
 
 # カード定義
 CARD_SUITS = ['spades', 'hearts', 'clubs', 'diamonds']
@@ -181,23 +182,34 @@ async def join_poker(interaction: discord.Interaction):
     view = PokerJoinView(channel_id=interaction.channel_id)
     await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
 
-@bot.tree.command(name="chargem", description="VirtualCryptoで支払った分をBot内通貨にチャージします", guild=discord.Object(id=GUILD_ID))
-async def charge(interaction: discord.Interaction):
-    await interaction.response.send_message("💸 最新の `/pay` メッセージを確認しています...", ephemeral=True)
+@bot.tree.command(name="chargem", description="VirtualCryptoで支払った分をBot内通貨にチャージします")
+@app_commands.describe(amount="チャージする通貨量（例：1000）")
+async def chargem(interaction: discord.Interaction, amount: int):
+    if amount <= 0:
+        await interaction.response.send_message("⚠️ 金額は1以上で指定してください。", ephemeral=True)
+        return
 
-    async for msg in interaction.channel.history(limit=20):
-        if msg.author.bot and "/pay" in msg.content and interaction.user.name in msg.content:
-            parts = msg.content.split()
-            if len(parts) >= 3:
-                try:
-                    amount = int(parts[2].replace("spt", "").replace("Spt", ""))
-                    add_balance(interaction.user.id, amount)
-                    await interaction.followup.send(f"✅ {amount} spt をチャージしました！現在の残高: {get_balance(interaction.user.id)} spt", ephemeral=True)
-                    return
-                except ValueError:
-                    continue
+    await interaction.response.send_message(
+        f"💸 `{amount} spt` をチャージするには、3分以内にこのチャンネルで以下のように送金してください：\n"
+        f"`/pay {bot.user.name} {amount}spt`",
+        ephemeral=False
+    )
 
-    await interaction.followup.send("⚠️ `/pay` メッセージが見つかりませんでした。再度 `/pay` を送信してください。", ephemeral=True)
+    def check(msg):
+        return (
+            msg.author.bot and
+            msg.channel == interaction.channel and
+            "/pay" in msg.content and
+            interaction.user.display_name in msg.content and
+            str(amount) in msg.content
+        )
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=180)  # 3分待機
+        add_balance(interaction.user.id, amount)
+        await interaction.channel.send(f"✅ {interaction.user.mention} さん、{amount} spt のチャージが完了しました！現在の残高: {get_balance(interaction.user.id)} spt")
+    except asyncio.TimeoutError:
+        await interaction.channel.send(f"⏱️ {interaction.user.mention} さん、3分以内に送金が確認できなかったため、チャージをキャンセルしました。")
 
 LOG_CHANNEL_ID = 1401466622149005493  # ログチャンネルのIDを必ず設定
 
@@ -271,6 +283,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
