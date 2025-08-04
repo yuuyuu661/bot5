@@ -129,7 +129,6 @@ class PokerActionView(discord.ui.View):
         self.action = None
 
         if not is_first_player:
-            self.add_item(self.call_button)
             self.add_item(self.raise_button)
 
     @discord.ui.button(label="💰 ベット", style=discord.ButtonStyle.success, row=0)
@@ -161,7 +160,7 @@ class PokerActionView(discord.ui.View):
         except ValueError:
             await interaction.followup.send("❌ 数値を入力してください。", ephemeral=True)
 
-    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1, custom_id="call_button", disabled=True)
+    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1)
     async def call_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         required = self.game.current_bet - self.game.round_bets.get(self.player.id, 0)
         if required <= 0:
@@ -176,7 +175,7 @@ class PokerActionView(discord.ui.View):
         await interaction.response.send_message(f"📞 {required} Spt をコールしました！", ephemeral=True)
         self.stop()
 
-    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1, custom_id="raise_button", disabled=True)
+    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1)
     async def raise_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         current = self.game.current_bet
         await interaction.response.send_message(f"📈 {current} Spt 以上の金額を入力してください（最大500）。", ephemeral=True)
@@ -240,14 +239,7 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
         await view.wait()
         game.turn_index += 1
 
-    await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
-        return
-
-    player = game.players[game.turn_index]
-    if player.id in game.folded:
-        game.turn_index += 1
-        await play_turn(interaction, game)
-        return
+    await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")  
 
     await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
     try:
@@ -348,14 +340,14 @@ async def start_poker(interaction: discord.Interaction):
     deck = CARD_DECK.copy()
     random.shuffle(deck)
     for player in game.players:
-        hand = [deck.pop() for _ in range(5)]
-        file = await create_hand_image(hand)
-        try:
-    await player.send(content="🎴 あなたの手札はこちら：", file=file)
-    subtract_balance(player.id, 100)
-    await player.send("💸 参加費として 100 Spt を支払いました。")
-except discord.Forbidden:
-    await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+    hand = [deck.pop() for _ in range(5)]
+    file = await create_hand_image(hand)
+    try:
+        await player.send(content="🎴 あなたの手札はこちら：", file=file)
+        subtract_balance(player.id, 100)
+        await player.send("💸 参加費として 100 Spt を支払いました。")
+    except discord.Forbidden:
+        await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
 
     game.turn_index = 0
     game.first_round = True
@@ -379,6 +371,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
