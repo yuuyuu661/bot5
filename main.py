@@ -235,7 +235,7 @@ class PokerActionView(discord.ui.View):
         except ValueError:
             await interaction.followup.send("❌ 数値を入力してください。", ephemeral=True)
 
-    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1, custom_id="call_button", disabled=True)
+    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1)
     async def call_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         required = self.game.current_bet - self.game.round_bets.get(self.player.id, 0)
         if required <= 0:
@@ -253,7 +253,7 @@ class PokerActionView(discord.ui.View):
         else:
             await interaction.response.send_message("❌ 残高が不足しています。", ephemeral=True)
 
-    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1, custom_id="raise_button", disabled=True)
+    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1)
     async def raise_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         current = self.game.current_bet
         await interaction.response.send_message(f"📈 {current} Spt 以上の金額を入力してください（最大500）。", ephemeral=True)
@@ -591,6 +591,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
