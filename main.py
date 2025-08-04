@@ -127,6 +127,7 @@ class PokerGameState:
         self.round_bets = {}      # 各プレイヤーがこのラウンドで賭けた額
         self.current_bet = 0      # 現在の最高ベット額
         self.first_round = True   # 一巡目フラグ
+        self.hands = {}  # ← 追加：プレイヤーの手札保存用
 
 # 参加ボタン
 class PokerJoinView(discord.ui.View):
@@ -281,27 +282,18 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
 
     await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
     
-    async def showdown(interaction: discord.Interaction, game: PokerGameState):
+async def showdown(interaction: discord.Interaction, game: PokerGameState):
     results = []
     for player in game.players:
         if player.id in game.folded:
             continue
 
-        try:
-            async for msg in player.history(limit=10):
-                if msg.attachments:
-                    filename = msg.attachments[0].filename
-                    hand_str = filename.replace("hand_", "").replace(".png", "")
-                    hand = hand_str.split(",")  # フォーマットが必要なら適宜修正
-                    break
-            else:
-                continue  # 手札が見つからなければスキップ
-
-            hand_strength = evaluate_hand(hand)
-            results.append((player, hand, hand_strength))
-        except Exception as e:
-            await interaction.channel.send(f"⚠️ {player.display_name} の手札評価に失敗しました: {e}")
+        hand = game.hands.get(player.id)
+        if not hand:
             continue
+
+        hand_strength = evaluate_hand(hand)
+        results.append((player, hand, hand_strength))
 
     if not results:
         await interaction.channel.send("❌ 有効なプレイヤーがいません。")
@@ -313,7 +305,6 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
     await interaction.channel.send(
         f"🏆 勝者: {winner.mention}！ 役ランク: {hand_value[0]}、手札: {', '.join(winning_hand)}\n💰 獲得ポット: {game.pot} Spt"
     )
-
 
     await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
     try:
@@ -465,6 +456,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
