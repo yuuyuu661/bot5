@@ -182,7 +182,7 @@ async def join_poker(interaction: discord.Interaction):
     view = PokerJoinView(channel_id=interaction.channel_id)
     await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
 
-@bot.tree.command(name="chargem", description="VirtualCryptoで支払った分をBot内通貨にチャージします")
+@bot.tree.command(name="chargem", description="VirtualCryptoで支払った分をBot内通貨にチャージします", guild=discord.Object(id=GUILD_ID))
 @app_commands.describe(amount="チャージする通貨量（例：1000）")
 async def chargem(interaction: discord.Interaction, amount: int):
     if amount <= 0:
@@ -283,6 +283,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
