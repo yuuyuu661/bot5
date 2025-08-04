@@ -320,6 +320,71 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
         game.turn_index += 1
 
     await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
+async def exchange_cards(interaction: discord.Interaction, game: PokerGameState, deck: list):
+    await interaction.channel.send("🔄 手札交換フェーズを開始します。全プレイヤーにDMを送信しています。")
+
+    player_hands = {}
+
+    for player in game.players:
+        player_hands[player.id] = [deck.pop() for _ in range(5)]  # 初回仮実装（将来は保存された手札を使用）
+
+    for player in game.players:
+        if player.id in game.folded:
+            continue
+
+        try:
+            await player.send(
+                "✉️ 交換したいカードの位置を「1,3,5」のようにカンマ区切りで入力してください（最大3枚まで）。\n"
+                "交換しない場合は `なし` または `0` と入力してください。"
+            )
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。交換スキップします。")
+            continue
+
+    def check(m: discord.Message):
+        return m.guild is None and m.author.id in [p.id for p in game.players]
+
+    end_time = asyncio.get_event_loop().time() + 30
+    responded = set()
+
+    while asyncio.get_event_loop().time() < end_time and len(responded) < len(game.players):
+        try:
+            msg = await bot.wait_for("message", timeout=end_time - asyncio.get_event_loop().time(), check=check)
+            user_id = msg.author.id
+            if user_id in responded:
+                continue
+            responded.add(user_id)
+
+            content = msg.content.strip().lower().replace(" ", "").replace("　", "")
+            if content in ["0", "なし", "なし。", "交換なし"]:
+                await msg.channel.send("👌 交換しない選択が確認されました。")
+                continue
+
+            indexes = content.split(",")
+            if len(indexes) > 3:
+                await msg.channel.send("⚠️ 交換は最大3枚までです。")
+                continue
+
+            current_hand = player_hands.get(user_id, [deck.pop() for _ in range(5)])
+            new_hand = current_hand[:]
+
+            for i in indexes:
+                if i.isdigit():
+                    idx = int(i) - 1
+                    if 0 <= idx < 5:
+                        new_hand[idx] = deck.pop()
+
+            player_hands[user_id] = new_hand
+
+            file = await create_hand_image(new_hand)
+            await msg.author.send("🆕 新しい手札はこちらです：", file=file)
+
+        except asyncio.TimeoutError:
+            break
+        except Exception as e:
+            print(f"交換中のエラー: {e}")
+
+    await interaction.channel.send("✅ 交換フェーズが終了しました。次のアクションに進みます。")
     
 # showdown関数（同点対応版）
 async def showdown(interaction: discord.Interaction, game: PokerGameState):
@@ -511,6 +576,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
