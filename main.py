@@ -120,44 +120,127 @@ class PokerJoinView(discord.ui.View):
 
 # アクションボタン
 class PokerActionView(discord.ui.View):
-    def __init__(self, game, player):
+    def __init__(self, game, player, is_first_player):
         super().__init__(timeout=60)
         self.game = game
         self.player = player
+        self.is_first_player = is_first_player
+        self.selected_amount = 0
+        self.action = None
 
-    @discord.ui.button(label="💰 ベット", style=discord.ButtonStyle.success)
-    async def bet(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.game.bets[self.player.id] = 100
-        self.game.pot += 100
-        await interaction.response.send_message("💰 あなたは 100 チップをベットしました", ephemeral=True)
+        if not is_first_player:
+            self.add_item(self.call_button)
+            self.add_item(self.raise_button)
+
+    @discord.ui.button(label="💰 ベット", style=discord.ButtonStyle.success, row=0)
+    async def bet_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.is_first_player:
+            await interaction.response.send_message("このアクションは現在使用できません（すでにベットが行われています）。", ephemeral=True)
+            return
+
+        await interaction.response.send_message("💰 100〜500 Spt の間でベット額を入力してください。", ephemeral=True)
+
+        def check(m: discord.Message):
+            return m.author == interaction.user and m.channel == interaction.channel
+
+        try:
+            msg = await bot.wait_for('message', timeout=30.0, check=check)
+            amount = int(msg.content)
+            if 100 <= amount <= 500:
+                self.selected_amount = amount
+                self.action = "bet"
+                self.game.round_bets[self.player.id] = amount
+                self.game.current_bet = amount
+                self.game.pot += amount
+                await interaction.followup.send(f"✅ {amount} Spt をベットしました！", ephemeral=True)
+                self.stop()
+            else:
+                await interaction.followup.send("❌ 金額は100〜500の間で指定してください。", ephemeral=True)
+        except asyncio.TimeoutError:
+            await interaction.followup.send("⏱️ 入力が時間切れになりました。", ephemeral=True)
+        except ValueError:
+            await interaction.followup.send("❌ 数値を入力してください。", ephemeral=True)
+
+    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary, row=1, custom_id="call_button", disabled=True)
+    async def call_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        required = self.game.current_bet - self.game.round_bets.get(self.player.id, 0)
+        if required <= 0:
+            await interaction.response.send_message("✅ すでに必要な額を支払っています。", ephemeral=True)
+            self.stop()
+            return
+
+        self.selected_amount = required
+        self.action = "call"
+        self.game.round_bets[self.player.id] = self.game.round_bets.get(self.player.id, 0) + required
+        self.game.pot += required
+        await interaction.response.send_message(f"📞 {required} Spt をコールしました！", ephemeral=True)
         self.stop()
 
-    @discord.ui.button(label="📞 コール", style=discord.ButtonStyle.primary)
-    async def call(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.game.bets[self.player.id] = 100
-        self.game.pot += 100
-        await interaction.response.send_message("📞 あなたは 100 チップをコールしました", ephemeral=True)
-        self.stop()
+    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger, row=1, custom_id="raise_button", disabled=True)
+    async def raise_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        current = self.game.current_bet
+        await interaction.response.send_message(f"📈 {current} Spt 以上の金額を入力してください（最大500）。", ephemeral=True)
 
-    @discord.ui.button(label="📈 レイズ", style=discord.ButtonStyle.danger)
-    async def raise_(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.game.bets[self.player.id] = 200
-        self.game.pot += 200
-        await interaction.response.send_message("📈 あなたは 200 チップをレイズしました", ephemeral=True)
-        self.stop()
+        def check(m: discord.Message):
+            return m.author == interaction.user and m.channel == interaction.channel
 
-    @discord.ui.button(label="🙅 フォールド", style=discord.ButtonStyle.secondary)
-    async def fold(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            msg = await bot.wait_for('message', timeout=30.0, check=check)
+            raise_amount = int(msg.content)
+            if raise_amount > current and raise_amount <= 500:
+                self.selected_amount = raise_amount
+                self.action = "raise"
+                self.game.round_bets[self.player.id] = raise_amount
+                self.game.current_bet = raise_amount
+                self.game.pot += raise_amount
+                await interaction.followup.send(f"📈 {raise_amount} Spt にレイズしました！", ephemeral=True)
+                self.stop()
+            else:
+                await interaction.followup.send("❌ 有効なレイズ額を入力してください（現在のベットより多く、最大500まで）。", ephemeral=True)
+        except asyncio.TimeoutError:
+            await interaction.followup.send("⏱️ 入力が時間切れになりました。", ephemeral=True)
+        except ValueError:
+            await interaction.followup.send("❌ 数値を入力してください。", ephemeral=True)
+
+    @discord.ui.button(label="🙅 フォールド", style=discord.ButtonStyle.secondary, row=2)
+    async def fold_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.game.folded.add(self.player.id)
-        await interaction.response.send_message("🙅‍♂️ あなたはフォールドしました", ephemeral=True)
+        self.action = "fold"
+        await interaction.response.send_message("🙅‍♂️ フォールドしました。", ephemeral=True)
         self.stop()
 
 # ターン処理関数（クラス外）
 
 
-async def play_turn(interaction, game: PokerGameState):
-    if game.turn_index >= len(game.players):
-        await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
+async def play_turn(interaction: discord.Interaction, game: PokerGameState):
+    while game.turn_index < len(game.players):
+        player = game.players[game.turn_index]
+
+        # フォールド済プレイヤーはスキップ
+        if player.id in game.folded:
+            game.turn_index += 1
+            continue
+
+        # コール・レイズが可能かの判定（一巡目の最初のみFalse）
+        is_first_player = (game.turn_index == 0 and all(v == 0 for v in game.round_bets.values()))
+        view = PokerActionView(game, player, is_first_player=is_first_player)
+
+        await interaction.channel.send(
+            f"🎯 現在のターン：{player.mention}（現在のベット額：{game.current_bet} Spt）"
+        )
+
+        try:
+            await player.send("あなたのアクションを選択してください：", view=view)
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送信できませんでした。フォールド扱いにします。")
+            game.folded.add(player.id)
+            game.turn_index += 1
+            continue
+
+        await view.wait()
+        game.turn_index += 1
+
+    await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
         return
 
     player = game.players[game.turn_index]
@@ -296,6 +379,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
