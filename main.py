@@ -87,6 +87,21 @@ def evaluate_hand(cards):
         return (1, max(k for k, v in counts.items() if v == 2))  # ワンペア
     else:
         return (0, max(values))  # ハイカード
+# ゲーム状態クラス
+class PokerGameState:
+    def __init__(self, owner_id):
+        self.owner_id = owner_id
+        self.players = []
+        self.started = False
+        self.turn_index = 0
+        self.folded = set()
+        self.bets = {}
+        self.pot = 0
+        self.round_bets = {}      # 各プレイヤーがこのラウンドで賭けた額
+        self.current_bet = 0      # 現在の最高ベット額
+        self.first_round = True   # 一巡目フラグ
+        self.hands = {}  # ← 追加：プレイヤーの手札保存用
+        
 async def exchange_cards(interaction: discord.Interaction, game: PokerGameState, deck: list):
     for player in game.players:
         if player.id in game.folded:
@@ -154,20 +169,6 @@ async def create_hand_image(card_names):
     buffer.seek(0)
     return discord.File(fp=buffer, filename="hand.png")
 
-# ゲーム状態クラス
-class PokerGameState:
-    def __init__(self, owner_id):
-        self.owner_id = owner_id
-        self.players = []
-        self.started = False
-        self.turn_index = 0
-        self.folded = set()
-        self.bets = {}
-        self.pot = 0
-        self.round_bets = {}      # 各プレイヤーがこのラウンドで賭けた額
-        self.current_bet = 0      # 現在の最高ベット額
-        self.first_round = True   # 一巡目フラグ
-        self.hands = {}  # ← 追加：プレイヤーの手札保存用
 # 参加ボタン
 class PokerJoinView(discord.ui.View):
     def __init__(self, channel_id):
@@ -576,6 +577,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
