@@ -87,6 +87,46 @@ def evaluate_hand(cards):
         return (1, max(k for k, v in counts.items() if v == 2))  # ワンペア
     else:
         return (0, max(values))  # ハイカード
+async def exchange_cards(interaction: discord.Interaction, game: PokerGameState, deck: list):
+    for player in game.players:
+        if player.id in game.folded:
+            continue  # フォールド者はスキップ
+
+        try:
+            await player.send(
+                "🃏 **カード交換フェーズです！**\n"
+                "交換したいカードの位置（1〜5）を**半角スペース区切り**で入力してください。\n"
+                "例: `2 4 5`（最大3枚まで）\n"
+                "交換しない場合は `0` を入力してください。"
+            )
+
+            def check(m: discord.Message):
+                return m.author == player and isinstance(m.channel, discord.DMChannel)
+
+            msg = await bot.wait_for('message', check=check, timeout=60)
+            input_text = msg.content.strip()
+
+            if input_text == "0":
+                await player.send("📩 カードを交換しませんでした。")
+                continue
+
+            indexes = list(map(int, input_text.split()))
+            if len(indexes) > 3 or not all(1 <= i <= 5 for i in indexes):
+                await player.send("⚠️ 入力が無効です。交換はスキップされました。")
+                continue
+
+            old_hand = game.hands[player.id]
+            for i in indexes:
+                old_hand[i - 1] = deck.pop()
+
+            file = await create_hand_image(old_hand)
+            await player.send("🎴 新しい手札はこちらです：", file=file)
+            await interaction.channel.send(f"🔁 {player.mention} が {len(indexes)} 枚のカードを交換しました。")
+
+        except asyncio.TimeoutError:
+            await interaction.channel.send(f"⏱️ {player.mention} のカード交換が時間切れになりました。スキップします。")
+        except Exception as e:
+            await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました。{e}")
 
 # カード画像結合関数
 async def create_hand_image(card_names):
@@ -128,7 +168,6 @@ class PokerGameState:
         self.current_bet = 0      # 現在の最高ベット額
         self.first_round = True   # 一巡目フラグ
         self.hands = {}  # ← 追加：プレイヤーの手札保存用
-
 # 参加ボタン
 class PokerJoinView(discord.ui.View):
     def __init__(self, channel_id):
@@ -471,6 +510,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
