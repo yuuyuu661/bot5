@@ -103,46 +103,68 @@ class PokerGameState:
         self.hands = {}  # ← 追加：プレイヤーの手札保存用
         
 async def exchange_cards(interaction: discord.Interaction, game: PokerGameState, deck: list):
+    await interaction.channel.send("🔄 手札交換フェーズを開始します。全プレイヤーにDMを送信しています。")
+
     for player in game.players:
         if player.id in game.folded:
-            continue  # フォールド者はスキップ
+            continue  # フォールドしたプレイヤーはスキップ
 
         try:
             await player.send(
-                "🃏 **カード交換フェーズです！**\n"
-                "交換したいカードの位置（1〜5）を**半角スペース区切り**で入力してください。\n"
-                "例: `2 4 5`（最大3枚まで）\n"
-                "交換しない場合は `0` を入力してください。"
+                "✉️ **カード交換フェーズです！**\n"
+                "交換したいカードの位置を「1,3,5」のように**カンマ区切り**で入力してください（最大3枚まで）。\n"
+                "交換しない場合は `0` または `なし` と入力してください。"
             )
+        except discord.Forbidden:
+            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。交換をスキップします。")
+            continue
 
-            def check(m: discord.Message):
-                return m.author == player and isinstance(m.channel, discord.DMChannel)
+    def check(m: discord.Message):
+        return m.guild is None and m.author.id in [p.id for p in game.players]
 
-            msg = await bot.wait_for('message', check=check, timeout=60)
-            input_text = msg.content.strip()
+    end_time = asyncio.get_event_loop().time() + 60
+    responded = set()
 
-            if input_text == "0":
-                await player.send("📩 カードを交換しませんでした。")
+    while asyncio.get_event_loop().time() < end_time and len(responded) < len(game.players):
+        try:
+            msg = await bot.wait_for("message", timeout=end_time - asyncio.get_event_loop().time(), check=check)
+            user_id = msg.author.id
+            if user_id in responded or user_id in game.folded:
                 continue
 
-            indexes = list(map(int, input_text.split()))
-            if len(indexes) > 3 or not all(1 <= i <= 5 for i in indexes):
-                await player.send("⚠️ 入力が無効です。交換はスキップされました。")
+            responded.add(user_id)
+            content = msg.content.strip().lower().replace(" ", "").replace("　", "")
+            if content in ["0", "なし", "なし。", "交換なし"]:
+                await msg.channel.send("👌 交換しない選択が確認されました。")
                 continue
 
-            old_hand = game.hands[player.id]
+            indexes = content.split(",")
+            if len(indexes) > 3:
+                await msg.channel.send("⚠️ 交換は最大3枚までです。")
+                continue
+
+            current_hand = game.hands.get(user_id, [])
+            if not current_hand or len(current_hand) != 5:
+                await msg.channel.send("⚠️ 現在の手札情報に誤りがあります。")
+                continue
+
+            new_hand = current_hand[:]
             for i in indexes:
-                old_hand[i - 1] = deck.pop()
+                if i.isdigit():
+                    idx = int(i) - 1
+                    if 0 <= idx < 5:
+                        new_hand[idx] = deck.pop()
 
-            file = await create_hand_image(old_hand)
-            await player.send("🎴 新しい手札はこちらです：", file=file)
-            await interaction.channel.send(f"🔁 {player.mention} が {len(indexes)} 枚のカードを交換しました。")
+            game.hands[user_id] = new_hand  # 更新
+            file = await create_hand_image(new_hand)
+            await msg.author.send("🆕 新しい手札はこちらです：", file=file)
 
         except asyncio.TimeoutError:
-            await interaction.channel.send(f"⏱️ {player.mention} のカード交換が時間切れになりました。スキップします。")
+            break
         except Exception as e:
-            await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました。{e}")
+            print(f"交換中のエラー: {e}")
 
+    await interaction.channel.send("✅ 交換フェーズが終了しました。次のアクションに進みます。")
 # カード画像結合関数
 async def create_hand_image(card_names):
     images = []
@@ -581,6 +603,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
