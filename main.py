@@ -353,9 +353,6 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
     player_hands = {}
 
     for player in game.players:
-        player_hands[player.id] = [deck.pop() for _ in range(5)]  # 初回仮実装（将来は保存された手札を使用）
-
-    for player in game.players:
         if player.id in game.folded:
             continue
 
@@ -603,6 +600,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
