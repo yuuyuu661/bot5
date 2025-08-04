@@ -302,8 +302,13 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
     results.sort(key=lambda x: x[2], reverse=True)
     winner, winning_hand, hand_value = results[0]
 
+    # 通貨配分：勝者にポットを付与
+    add_balance(winner.id, game.pot)
+
     await interaction.channel.send(
-        f"🏆 勝者: {winner.mention}！ 役ランク: {hand_value[0]}、手札: {', '.join(winning_hand)}\n💰 獲得ポット: {game.pot} Spt"
+        f"🏆 勝者: {winner.mention}！ 役ランク: {hand_value[0]}、手札: {', '.join(winning_hand)}\n"
+        f"💰 獲得ポット: {game.pot} Spt\n"
+        f"💼 新しい残高: {get_balance(winner.id)} Spt"
     )
 
     await interaction.channel.send(f"🎯 現在のターン：{player.mention}")
@@ -456,6 +461,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
