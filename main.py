@@ -448,6 +448,20 @@ async def join_poker(interaction: discord.Interaction):
     POKER_GAMES[interaction.channel_id] = PokerGameState(owner_id=interaction.user.id)
     view = PokerJoinView(channel_id=interaction.channel_id)
     await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
+    
+@bot.tree.command(name="abortpoker", description="現在のポーカーゲームを中止します（主催者のみ）", guild=discord.Object(id=GUILD_ID))
+async def abort_poker(interaction: discord.Interaction):
+    game = POKER_GAMES.get(interaction.channel_id)
+    if not game:
+        await interaction.response.send_message("⚠️ 現在このチャンネルで開催中のゲームはありません。", ephemeral=True)
+        return
+
+    if interaction.user.id != game.owner_id:
+        await interaction.response.send_message("❌ このコマンドは主催者のみ使用できます。", ephemeral=True)
+        return
+
+    del POKER_GAMES[interaction.channel_id]
+    await interaction.response.send_message("🛑 ポーカーゲームを中止しました。", ephemeral=False)
 
 @bot.tree.command(name="chargem", description="VirtualCryptoで支払った分をBot内通貨にチャージします", guild=discord.Object(id=GUILD_ID))
 @app_commands.describe(amount="チャージする通貨量（例：1000）")
@@ -577,6 +591,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
