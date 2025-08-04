@@ -23,6 +23,37 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 GUILD_ID = 1398607685158440991
 POKER_GAMES = {}
 
+CURRENCY_FILE = "currency.json"
+
+def load_currency():
+    if not os.path.exists(CURRENCY_FILE):
+        return {}
+    with open(CURRENCY_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_currency(data):
+    with open(CURRENCY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def get_balance(user_id):
+    data = load_currency()
+    return data.get(str(user_id), 0)
+
+def add_balance(user_id, amount):
+    data = load_currency()
+    uid = str(user_id)
+    data[uid] = data.get(uid, 0) + amount
+    save_currency(data)
+
+def subtract_balance(user_id, amount):
+    data = load_currency()
+    uid = str(user_id)
+    if data.get(uid, 0) >= amount:
+        data[uid] -= amount
+        save_currency(data)
+        return True
+    return False
+    
 # カード画像結合関数
 async def create_hand_image(card_names):
     images = []
@@ -149,6 +180,49 @@ async def join_poker(interaction: discord.Interaction):
     view = PokerJoinView(channel_id=interaction.channel_id)
     await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
 
+@bot.tree.command(name="charge", description="VirtualCryptoで支払った分をBot内通貨にチャージします")
+async def charge(interaction: discord.Interaction):
+    await interaction.response.send_message("💸 最新の `/pay` メッセージを確認しています...", ephemeral=True)
+
+    async for msg in interaction.channel.history(limit=20):
+        if msg.author.bot and "/pay" in msg.content and interaction.user.name in msg.content:
+            parts = msg.content.split()
+            if len(parts) >= 3:
+                try:
+                    amount = int(parts[2].replace("spt", "").replace("Spt", ""))
+                    add_balance(interaction.user.id, amount)
+                    await interaction.followup.send(f"✅ {amount} spt をチャージしました！現在の残高: {get_balance(interaction.user.id)} spt", ephemeral=True)
+                    return
+                except ValueError:
+                    continue
+
+    await interaction.followup.send("⚠️ `/pay` メッセージが見つかりませんでした。再度 `/pay` を送信してください。", ephemeral=True)
+
+LOG_CHANNEL_ID = 1401466622149005493  # ログチャンネルのIDを必ず設定
+
+@bot.tree.command(name="change", description="Bot内通貨を換金申請します（手動振込）")
+@app_commands.describe(amount="換金する通貨量")
+async def change(interaction: discord.Interaction, amount: int):
+    if amount <= 0:
+        await interaction.response.send_message("⚠️ 金額は1以上にしてください。", ephemeral=True)
+        return
+
+    if subtract_balance(interaction.user.id, amount):
+        await interaction.response.send_message(f"💰 {amount} spt の換金申請を受け付けました。", ephemeral=True)
+
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(f"💸 {interaction.user.mention} が {amount} spt の換金を申請しました。 `/pay` にて振込をお願いします。")
+        else:
+            await interaction.channel.send("⚠️ ログチャンネルが見つかりませんでした。")
+    else:
+        await interaction.response.send_message("❌ 残高が不足しています。", ephemeral=True)
+
+@bot.tree.command(name="wallet", description="現在のBot内通貨残高を確認します")
+async def wallet(interaction: discord.Interaction):
+    balance = get_balance(interaction.user.id)
+    await interaction.response.send_message(f"💼 あなたの残高は {balance} spt です。", ephemeral=True)
+    
 @bot.tree.command(name="startpoker", description="ポーカーゲームを開始します（主催者のみ）", guild=discord.Object(id=GUILD_ID))
 async def start_poker(interaction: discord.Interaction):
     game = POKER_GAMES.get(interaction.channel_id)
@@ -196,3 +270,4 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
