@@ -10,6 +10,8 @@ import io
 import aiohttp
 import asyncio
 
+VIRTUALCRYPTO_ID = 800892182633381950
+
 # カード定義
 CARD_SUITS = ['spades', 'hearts', 'clubs', 'diamonds']
 CARD_NUMBERS = [str(i) for i in range(2, 11)] + ['J', 'Q', 'K', 'A']
@@ -195,13 +197,13 @@ async def chargem(interaction: discord.Interaction, amount: int):
         ephemeral=False
     )
 
-    def check(msg):
+   def check(msg: discord.Message):
+        description = msg.embeds[0].description if msg.embeds else ""
         return (
-            msg.author.bot and
-            msg.channel == interaction.channel and
-            "/pay" in msg.content and
-            interaction.user.display_name in msg.content and
-            str(amount) in msg.content
+            msg.author.id == VIRTUALCRYPTO_ID and
+            f"<@{interaction.user.id}>から<@{bot.user.id}>へ" in description and
+            f"{coins}" in description and
+            "Spt" in description
         )
 
     try:
@@ -283,6 +285,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
