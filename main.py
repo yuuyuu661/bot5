@@ -180,7 +180,7 @@ async def join_poker(interaction: discord.Interaction):
     view = PokerJoinView(channel_id=interaction.channel_id)
     await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
 
-@bot.tree.command(name="charge", description="VirtualCryptoで支払った分をBot内通貨にチャージします")
+@bot.tree.command(name="chargem", description="VirtualCryptoで支払った分をBot内通貨にチャージします")
 async def charge(interaction: discord.Interaction):
     await interaction.response.send_message("💸 最新の `/pay` メッセージを確認しています...", ephemeral=True)
 
@@ -200,7 +200,7 @@ async def charge(interaction: discord.Interaction):
 
 LOG_CHANNEL_ID = 1401466622149005493  # ログチャンネルのIDを必ず設定
 
-@bot.tree.command(name="change", description="Bot内通貨を換金申請します（手動振込）")
+@bot.tree.command(name="changem", description="Bot内通貨を換金申請します（手動振込）")
 @app_commands.describe(amount="換金する通貨量")
 async def change(interaction: discord.Interaction, amount: int):
     if amount <= 0:
@@ -218,7 +218,7 @@ async def change(interaction: discord.Interaction, amount: int):
     else:
         await interaction.response.send_message("❌ 残高が不足しています。", ephemeral=True)
 
-@bot.tree.command(name="wallet", description="現在のBot内通貨残高を確認します")
+@bot.tree.command(name="walletm", description="現在のBot内通貨残高を確認します")
 async def wallet(interaction: discord.Interaction):
     balance = get_balance(interaction.user.id)
     await interaction.response.send_message(f"💼 あなたの残高は {balance} spt です。", ephemeral=True)
@@ -270,4 +270,5 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
