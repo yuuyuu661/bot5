@@ -354,17 +354,10 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
     for player in game.players:
         if player.id in game.folded:
             continue
-        try:
-            messages = await player.history(limit=10).flatten()
-            for msg in messages:
-                if msg.attachments:
-                    filename = msg.attachments[0].filename
-                    card_names = filename.replace("hand:", "").replace(".png", "").split(",")
-                    hand_value = evaluate_hand(card_names)
-                    results.append((player, hand_value))
-                    break
-        except Exception:
-            continue
+        hand = game.hands.get(player.id)
+        if hand:
+            hand_value = evaluate_hand(hand)
+            results.append((player, hand_value))
 
     if not results:
         await interaction.channel.send("❌ 勝者を判定できませんでした。")
@@ -384,7 +377,6 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
             add_balance(winner.id, share)
         winner_mentions = ", ".join(w.mention for w in winners)
         await interaction.channel.send(f"🤝 引き分けです！{winner_mentions} がそれぞれ {share} Spt を獲得しました。")
-
 # コマンド定義
 @bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します", guild=discord.Object(id=GUILD_ID))
 async def join_poker(interaction: discord.Interaction):
@@ -540,6 +532,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
