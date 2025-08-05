@@ -103,7 +103,7 @@ class PokerGameState:
         self.hands = {}  # ← 追加：プレイヤーの手札保存用
         
 async def exchange_cards(interaction: discord.Interaction, game: PokerGameState, deck: list):
-    await interaction.channel.send("🔄 手札交換フェーズを開始します。プレイヤー順にDMを送信します。")
+    await interaction.channel.send("\U0001f501 手札交換フェーズを開始します。プレイヤー順にDMを送信します。")
 
     for player in game.players:
         if player.id in game.folded:
@@ -112,7 +112,7 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
         hand = game.hands[player.id]
         try:
             await player.send(
-                "✉️ **カード交換フェーズ**\n"
+                "\u2709\ufe0f **カード交換フェーズ**\n"
                 "交換したいカードの位置を `1,3,5` のようにカンマ区切りで入力してください（最大3枚まで）。\n"
                 "交換しない場合は `0` または `なし` と入力してください。\n"
                 f"現在の手札はこちら："
@@ -120,7 +120,7 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
             file = await create_hand_image(hand)
             await player.send(file=file)
         except discord.Forbidden:
-            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。交換スキップします。")
+            await interaction.channel.send(f"\u26a0\ufe0f {player.mention} にDMを送れませんでした。交換スキップします。")
             continue
 
         def check(m: discord.Message):
@@ -129,36 +129,23 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
         try:
             msg = await bot.wait_for("message", check=check, timeout=60)
             content = msg.content.strip().lower().replace(" ", "").replace("　", "")
+
             if content in ["0", "なし", "なし。", "交換なし"]:
-                await player.send("👌 カードを交換しませんでした。")
-                await interaction.channel.send(f"🔁 {player.mention} はカードを交換しませんでした。")
+                await player.send("\ud83d\udc4c カードを交換しませんでした。")
+                await interaction.channel.send(f"\U0001f501 {player.mention} はカードを交換しませんでした。")
                 continue
 
-            # content はすでに strip().lower() 済みと仮定
-    # 入力文字列から数字だけを取り出す
-    digits_only = ''.join(filter(str.isdigit, content))
+            # 数字だけ取り出して処理
+            if "," in content or " " in content:
+                tokens = content.replace("　", " ").replace(",", " ").split()
+                indexes = [int(t) for t in tokens if t.isdigit()]
+            else:
+                indexes = [int(c) for c in content if c.isdigit()]
 
-    # カンマや空白が含まれていれば分割
-    if ',' in content or ' ' in content:
-        tokens = content.replace('　', ' ').replace(',', ' ').split()
-        indexes = [int(t) for t in tokens if t.isdigit()]
-    else:
-        indexes = [int(c) for c in digits_only]
-    
-            if len(indexes) == 0:
-                await player.send("⚠️ 入力が無効です。交換はスキップされました。")
-                await interaction.channel.send(f"⚠️ {player.mention} の交換入力が無効でした。")
-                continue
-
-            valid_indexes = []
-            for i in indexes:
-                idx = int(i)
-                if 1 <= idx <= 5:
-                    valid_indexes.append(idx - 1)
-
-            if len(valid_indexes) > 3:
-                await player.send("⚠️ 最大3枚まで交換可能です。交換はスキップされました。")
-                await interaction.channel.send(f"⚠️ {player.mention} の交換入力が3枚を超えていました。")
+            valid_indexes = [i - 1 for i in indexes if 1 <= i <= 5]
+            if len(valid_indexes) == 0 or len(valid_indexes) > 3:
+                await player.send("\u26a0\ufe0f 入力が無効か、交換枚数が多すぎます。交換はスキップされました。")
+                await interaction.channel.send(f"\u26a0\ufe0f {player.mention} の交換入力が無効でした。")
                 continue
 
             for idx in valid_indexes:
@@ -166,15 +153,15 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
 
             game.hands[player.id] = hand
             new_file = await create_hand_image(hand)
-            await player.send("🎴 交換後の手札はこちらです：", file=new_file)
-            await interaction.channel.send(f"🔁 {player.mention} が {len(valid_indexes)} 枚のカードを交換しました。")
+            await player.send("\U0001f3b4 交換後の手札はこちらです：", file=new_file)
+            await interaction.channel.send(f"\U0001f501 {player.mention} が {len(valid_indexes)} 枚のカードを交換しました。")
 
         except asyncio.TimeoutError:
-            await interaction.channel.send(f"⏱️ {player.mention} の交換が時間切れになりました。")
+            await interaction.channel.send(f"\u23f1\ufe0f {player.mention} の交換が時間切れになりました。")
         except Exception as e:
-            await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました：{e}")
+            await interaction.channel.send(f"\u26a0\ufe0f {player.mention} の交換処理でエラーが発生しました：{e}")
 
-    await interaction.channel.send("✅ 全プレイヤーの交換が終了しました。")
+    await interaction.channel.send("\u2705 全プレイヤーの交換が終了しました。")
 
 
 # カード画像結合関数
@@ -619,6 +606,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
