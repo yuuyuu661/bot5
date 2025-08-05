@@ -135,14 +135,15 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
                 continue
 
             # content はすでに strip().lower() 済みと仮定
-　　　　　　　　digits_only = ''.join(filter(str.isdigit, content))
+    # 入力文字列から数字だけを取り出す
+    digits_only = ''.join(filter(str.isdigit, content))
 
-　　　　　　　# カンマ・空白などが含まれている場合は split
-　　　　　　　　if ',' in content or ' ' in content:
-               tokens = content.replace('　', ' ').replace(',', ' ').split()
-               indexes = [int(t) for t in tokens if t.isdigit()]
-          else:
-               indexes = [int(c) for c in digits_only]
+    # カンマや空白が含まれていれば分割
+    if ',' in content or ' ' in content:
+        tokens = content.replace('　', ' ').replace(',', ' ').split()
+        indexes = [int(t) for t in tokens if t.isdigit()]
+    else:
+        indexes = [int(c) for c in digits_only]
     
             if len(indexes) == 0:
                 await player.send("⚠️ 入力が無効です。交換はスキップされました。")
@@ -614,6 +615,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
