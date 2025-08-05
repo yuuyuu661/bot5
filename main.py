@@ -126,7 +126,7 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
         def check(m: discord.Message):
             return m.author.id == player.id and isinstance(m.channel, discord.DMChannel)
 
-               try:
+        try:
             msg = await bot.wait_for("message", check=check, timeout=60)
             content = msg.content.strip().lower().replace(" ", "").replace("　", "")
             if content in ["0", "なし", "なし。", "交換なし"]:
@@ -165,8 +165,8 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
         except Exception as e:
             await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました：{e}")
 
-
     await interaction.channel.send("✅ 全プレイヤーの交換が終了しました。")
+
 
 # カード画像結合関数
 async def create_hand_image(card_names):
@@ -606,6 +606,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
