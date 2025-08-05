@@ -383,15 +383,33 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
             add_balance(winner.id, share)
         winner_mentions = ", ".join(w.mention for w in winners)
         await interaction.channel.send(f"🤝 引き分けです！{winner_mentions} がそれぞれ {share} Spt を獲得しました。")
+
+    # 🟡 ゲーム状態リセット（再戦可能に）
+    game.started = False
+    game.turn_index = 0
+    game.folded = set()
+    game.bets = {}
+    game.round_bets = {}
+    game.current_bet = 0
+    game.pot = 0
+    game.hands = {}
 # コマンド定義
 @bot.tree.command(name="joinpoker", description="ポーカーの参加者を募集します", guild=discord.Object(id=GUILD_ID))
 async def join_poker(interaction: discord.Interaction):
-    if interaction.channel_id in POKER_GAMES:
-        await interaction.response.send_message("このチャンネルではすでにポーカーが開催中です。", ephemeral=True)
-        return
-    POKER_GAMES[interaction.channel_id] = PokerGameState(owner_id=interaction.user.id)
+    game = POKER_GAMES.get(interaction.channel_id)
+    if game:
+        if game.started:
+            await interaction.response.send_message("このチャンネルではすでにポーカーが進行中です。", ephemeral=True)
+            return
+        else:
+            # 既存の未開始ゲームがあるなら再募集
+            game.players = []
+            game.owner_id = interaction.user.id
+    else:
+        POKER_GAMES[interaction.channel_id] = PokerGameState(owner_id=interaction.user.id)
+
     view = PokerJoinView(channel_id=interaction.channel_id)
-    await interaction.response.send_message("🃏 ポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
+    await interaction.response.send_message("🃏 新たにポーカーを開始しました！参加するには以下のボタンを押してください👇", view=view)
     
 @bot.tree.command(name="abortpoker", description="現在のポーカーゲームを中止します（主催者のみ）", guild=discord.Object(id=GUILD_ID))
 async def abort_poker(interaction: discord.Interaction):
@@ -541,6 +559,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
