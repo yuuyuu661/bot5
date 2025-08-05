@@ -491,7 +491,7 @@ async def start_poker(interaction: discord.Interaction):
         file = await create_hand_image(hand)
     
     try:
-    await player.send(content="🎴 あなたの手札はこちら：", file=file)
+        await player.send(content="🎴 あなたの手札はこちら：", file=file)
 
     if subtract_balance(player.id, 100):
         game.pot += 100
@@ -545,6 +545,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
