@@ -359,6 +359,10 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
             hand_value = evaluate_hand(hand)
             results.append((player, hand_value))
 
+            # 🖼️ 手札画像をチャンネルに送信
+            file = await create_hand_image(hand)
+            await interaction.channel.send(content=f"🃏 {player.mention} の手札：", file=file)
+
     if not results:
         await interaction.channel.send("❌ 勝者を判定できませんでした。")
         return
@@ -366,6 +370,8 @@ async def showdown(interaction: discord.Interaction, game: PokerGameState):
     results.sort(key=lambda x: x[1], reverse=True)
     top_score = results[0][1]
     winners = [p for p, score in results if score == top_score]
+
+    await asyncio.sleep(1)  # 画像の送信後に少し間を空けると見やすい
 
     if len(winners) == 1:
         winner = winners[0]
@@ -486,10 +492,13 @@ async def start_poker(interaction: discord.Interaction):
     
         try:
             await player.send(content="🎴 あなたの手札はこちら：", file=file)
-            subtract_balance(player.id, 100)
-            await player.send("💸 参加費として 100 Spt を支払いました。")
-        except discord.Forbidden:
-            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。")
+           if subtract_balance(player.id, 100):
+   　　 　　　　　　game.pot += 100
+    await player.send("💸 参加費として 100 Spt を支払いました。")
+else:
+    await player.send("❌ 残高不足で参加費を支払えませんでした。フォールド扱いになります。")
+  　　　  game.folded.add(player.id)
+    continue
 
 
     # ゲーム状態初期化（1巡目）
@@ -532,6 +541,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
