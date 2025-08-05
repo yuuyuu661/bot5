@@ -347,72 +347,6 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
 
     await interaction.channel.send("🟢 全員のアクションが完了しました。次のフェーズに進みます。")
 
-    await interaction.channel.send("🔄 手札交換フェーズを開始します。全プレイヤーにDMを送信しています。")
-
-    player_hands = {}
-
-    for player in game.players:
-        if player.id in game.folded:
-            continue
-
-        try:
-            await player.send(
-                "✉️ 交換したいカードの位置を「1,3,5」のようにカンマ区切りで入力してください（最大3枚まで）。\n"
-                "交換しない場合は `なし` または `0` と入力してください。"
-            )
-        except discord.Forbidden:
-            await interaction.channel.send(f"⚠️ {player.mention} にDMを送れませんでした。交換スキップします。")
-            continue
-
-    def check(m: discord.Message):
-        return m.guild is None and m.author.id in [p.id for p in game.players]
-
-    end_time = asyncio.get_event_loop().time() + 30
-    responded = set()
-
-    while asyncio.get_event_loop().time() < end_time and len(responded) < len(game.players):
-        try:
-            msg = await bot.wait_for("message", timeout=end_time - asyncio.get_event_loop().time(), check=check)
-            user_id = msg.author.id
-            if user_id in responded:
-                continue
-            responded.add(user_id)
-
-            content = msg.content.strip().lower().replace(" ", "").replace("　", "")
-    if content in ["0", "なし", "なし。", "交換なし"]:
-        await player.send("👌 カードを交換しませんでした。")
-        await interaction.channel.send(f"🔁 {player.mention} はカードを交換しませんでした。")
-        continue
-
-    # 数字だけ取り出して処理
-    digits_only = ''.join(filter(str.isdigit, content))
-    if ',' in content or ' ' in content:
-        tokens = content.replace('　', ' ').replace(',', ' ').split()
-        indexes = [int(t) for t in tokens if t.isdigit()]
-    else:
-        indexes = [int(c) for c in digits_only]
-
-    valid_indexes = [i - 1 for i in indexes if 1 <= i <= 5]
-    if len(valid_indexes) == 0 or len(valid_indexes) > 3:
-        await player.send("⚠️ 入力が無効か、交換枚数が多すぎます。交換はスキップされました。")
-        await interaction.channel.send(f"⚠️ {player.mention} の交換入力が無効でした。")
-        continue
-
-    for idx in valid_indexes:
-        hand[idx] = deck.pop()
-
-    game.hands[player.id] = hand
-    new_file = await create_hand_image(hand)
-    await player.send("🎴 交換後の手札はこちらです：", file=new_file)
-    await interaction.channel.send(f"🔁 {player.mention} が {len(valid_indexes)} 枚のカードを交換しました。")
-
-except asyncio.TimeoutError:
-    await interaction.channel.send(f"⏱️ {player.mention} の交換が時間切れになりました。")
-except Exception as e:
-    await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました：{e}")
-
-    await interaction.channel.send("✅ 交換フェーズが終了しました。次のアクションに進みます。")
-    
 # showdown関数（同点対応版）
 async def showdown(interaction: discord.Interaction, game: PokerGameState):
     results = []
@@ -606,6 +540,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
