@@ -134,8 +134,16 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
                 await interaction.channel.send(f"🔁 {player.mention} はカードを交換しませんでした。")
                 continue
 
-            indexes = [i.strip() for i in content.split(",") if i.strip().isdigit()]
+            # content はすでに strip().lower() 済みと仮定
+　　　　　　　　digits_only = ''.join(filter(str.isdigit, content))
 
+　　　　　　　# カンマ・空白などが含まれている場合は split
+　　　　　　　　if ',' in content or ' ' in content:
+               tokens = content.replace('　', ' ').replace(',', ' ').split()
+               indexes = [int(t) for t in tokens if t.isdigit()]
+          else:
+               indexes = [int(c) for c in digits_only]
+    
             if len(indexes) == 0:
                 await player.send("⚠️ 入力が無効です。交換はスキップされました。")
                 await interaction.channel.send(f"⚠️ {player.mention} の交換入力が無効でした。")
@@ -606,6 +614,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
