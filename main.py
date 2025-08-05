@@ -492,13 +492,13 @@ async def start_poker(interaction: discord.Interaction):
     
         try:
             await player.send(content="🎴 あなたの手札はこちら：", file=file)
-           if subtract_balance(player.id, 100):
-   　　 　　　　　　game.pot += 100
-    await player.send("💸 参加費として 100 Spt を支払いました。")
-else:
-    await player.send("❌ 残高不足で参加費を支払えませんでした。フォールド扱いになります。")
-  　　　  game.folded.add(player.id)
-    continue
+     if subtract_balance(player.id, 100):
+        game.pot += 100
+        await player.send("💸 参加費として 100 Spt を支払いました。")
+    else:
+        await player.send("❌ 残高不足で参加費を支払えませんでした。フォールド扱いになります。")
+        game.folded.add(player.id)
+        continue
 
 
     # ゲーム状態初期化（1巡目）
@@ -541,6 +541,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
