@@ -485,10 +485,12 @@ async def start_poker(interaction: discord.Interaction):
     random.shuffle(deck)
 
     # 手札配布と参加費処理
-for player in game.players:
-    hand = [deck.pop() for _ in range(5)]
-    game.hands[player.id] = hand
-    file = await create_hand_image(hand)
+    for player in game.players:
+        hand = [deck.pop() for _ in range(5)]
+        game.hands[player.id] = hand
+
+        # 👇 awaitはこの関数内でOK（ここはasync function内なので問題ない）
+        file = await create_hand_image(hand)
 
     try:
         await player.send(content="🎴 あなたの手札はこちら：", file=file)
@@ -545,6 +547,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
