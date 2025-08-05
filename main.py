@@ -135,7 +135,7 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
                 await interaction.channel.send(f"🔁 {player.mention} はカードを交換しませんでした。")
                 continue
 
-            # 入力文字列から数字を抽出（カンマ・スペース対応）
+            # カンマまたはスペース区切りの場合に対応
             if ',' in content or ' ' in content:
                 tokens = content.replace('　', ' ').replace(',', ' ').split()
                 indexes = [int(t) for t in tokens if t.isdigit()]
@@ -540,6 +540,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
