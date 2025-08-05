@@ -392,33 +392,37 @@ async def play_turn(interaction: discord.Interaction, game: PokerGameState):
             responded.add(user_id)
 
             content = msg.content.strip().lower().replace(" ", "").replace("　", "")
-            if content in ["0", "なし", "なし。", "交換なし"]:
-                await msg.channel.send("👌 交換しない選択が確認されました。")
-                continue
+    if content in ["0", "なし", "なし。", "交換なし"]:
+        await player.send("👌 カードを交換しませんでした。")
+        await interaction.channel.send(f"🔁 {player.mention} はカードを交換しませんでした。")
+        continue
 
-            indexes = content.split(",")
-            if len(indexes) > 3:
-                await msg.channel.send("⚠️ 交換は最大3枚までです。")
-                continue
+    # 数字だけ取り出して処理
+    digits_only = ''.join(filter(str.isdigit, content))
+    if ',' in content or ' ' in content:
+        tokens = content.replace('　', ' ').replace(',', ' ').split()
+        indexes = [int(t) for t in tokens if t.isdigit()]
+    else:
+        indexes = [int(c) for c in digits_only]
 
-            current_hand = game.hands.get(user_id, [])
-            new_hand = current_hand[:]
+    valid_indexes = [i - 1 for i in indexes if 1 <= i <= 5]
+    if len(valid_indexes) == 0 or len(valid_indexes) > 3:
+        await player.send("⚠️ 入力が無効か、交換枚数が多すぎます。交換はスキップされました。")
+        await interaction.channel.send(f"⚠️ {player.mention} の交換入力が無効でした。")
+        continue
 
-            for i in indexes:
-                if i.isdigit():
-                    idx = int(i) - 1
-                    if 0 <= idx < 5:
-                        new_hand[idx] = deck.pop()
+    for idx in valid_indexes:
+        hand[idx] = deck.pop()
 
-            game.hands[user_id] = new_hand
+    game.hands[player.id] = hand
+    new_file = await create_hand_image(hand)
+    await player.send("🎴 交換後の手札はこちらです：", file=new_file)
+    await interaction.channel.send(f"🔁 {player.mention} が {len(valid_indexes)} 枚のカードを交換しました。")
 
-            file = await create_hand_image(new_hand)
-            await msg.author.send("🆕 新しい手札はこちらです：", file=file)
-
-        except asyncio.TimeoutError:
-            break
-        except Exception as e:
-            print(f"交換中のエラー: {e}")
+except asyncio.TimeoutError:
+    await interaction.channel.send(f"⏱️ {player.mention} の交換が時間切れになりました。")
+except Exception as e:
+    await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました：{e}")
 
     await interaction.channel.send("✅ 交換フェーズが終了しました。次のアクションに進みます。")
     
@@ -615,6 +619,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
