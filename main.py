@@ -126,7 +126,7 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
         def check(m: discord.Message):
             return m.author.id == player.id and isinstance(m.channel, discord.DMChannel)
 
-        try:
+               try:
             msg = await bot.wait_for("message", check=check, timeout=60)
             content = msg.content.strip().lower().replace(" ", "").replace("　", "")
             if content in ["0", "なし", "なし。", "交換なし"]:
@@ -134,37 +134,37 @@ async def exchange_cards(interaction: discord.Interaction, game: PokerGameState,
                 await interaction.channel.send(f"🔁 {player.mention} はカードを交換しませんでした。")
                 continue
 
-indexes = [i.strip() for i in content.split(",") if i.strip().isdigit()]
+            indexes = [i.strip() for i in content.split(",") if i.strip().isdigit()]
 
-if len(indexes) == 0:
-    await player.send("⚠️ 入力が無効です。交換はスキップされました。")
-    await interaction.channel.send(f"⚠️ {player.mention} の交換入力が無効でした。")
-    continue
+            if len(indexes) == 0:
+                await player.send("⚠️ 入力が無効です。交換はスキップされました。")
+                await interaction.channel.send(f"⚠️ {player.mention} の交換入力が無効でした。")
+                continue
 
-valid_indexes = []
-for i in indexes:
-    idx = int(i)
-    if 1 <= idx <= 5:
-        valid_indexes.append(idx - 1)
+            valid_indexes = []
+            for i in indexes:
+                idx = int(i)
+                if 1 <= idx <= 5:
+                    valid_indexes.append(idx - 1)
 
-if len(valid_indexes) > 3:
-    await player.send("⚠️ 最大3枚まで交換可能です。交換はスキップされました。")
-    await interaction.channel.send(f"⚠️ {player.mention} の交換入力が3枚を超えていました。")
-    continue
+            if len(valid_indexes) > 3:
+                await player.send("⚠️ 最大3枚まで交換可能です。交換はスキップされました。")
+                await interaction.channel.send(f"⚠️ {player.mention} の交換入力が3枚を超えていました。")
+                continue
 
-for idx in valid_indexes:
-    hand[idx] = deck.pop()
+            for idx in valid_indexes:
+                hand[idx] = deck.pop()
 
-game.hands[player.id] = hand
-new_file = await create_hand_image(hand)
-await player.send("🎴 交換後の手札はこちらです：", file=new_file)
-await interaction.channel.send(f"🔁 {player.mention} が {len(valid_indexes)} 枚のカードを交換しました。")
-
+            game.hands[player.id] = hand
+            new_file = await create_hand_image(hand)
+            await player.send("🎴 交換後の手札はこちらです：", file=new_file)
+            await interaction.channel.send(f"🔁 {player.mention} が {len(valid_indexes)} 枚のカードを交換しました。")
 
         except asyncio.TimeoutError:
             await interaction.channel.send(f"⏱️ {player.mention} の交換が時間切れになりました。")
         except Exception as e:
             await interaction.channel.send(f"⚠️ {player.mention} の交換処理でエラーが発生しました：{e}")
+
 
     await interaction.channel.send("✅ 全プレイヤーの交換が終了しました。")
 
@@ -606,6 +606,7 @@ async def on_ready():
 # 起動
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
+
 
 
 
